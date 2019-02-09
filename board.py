@@ -1,0 +1,165 @@
+import pygame
+import itertools
+import random
+import tracer
+
+
+class Board:
+
+    def __init__(self, cols, rows, size):
+        self._cols = cols
+        self._rows = rows
+        self._size = size
+        self._surface = pygame.Surface([self.get_width(), self.get_height()])
+        self._board = [[(0, 0, 0) for i in range(cols)] for i in range(rows)]
+        self._tracer = tracer.Tracer(self._board)
+        self._active = False
+        self._colors = [
+            (255, 0, 0),
+            (0, 255, 0),
+            (0, 0, 255),
+            (255, 255, 0)
+        ]
+
+    def get_surface(self):
+        return self._surface
+
+    def render(self):
+        self._surface.fill((0, 0, 0))
+        pygame.draw.rect(self._surface, (255, 255, 255),
+                         (0, 0, self.get_width(), self.get_height()), 1)
+        for i in range(self._cols):
+            for j in range(self._rows):
+                self.render_cell((i, j))
+        return self.get_surface()
+
+    def render_cell(self, cell):
+        my_top = cell[1] * self._size
+        my_left = cell[0] * self._size
+        if self.get_item(cell):
+            color = self.get_item(cell)
+            pygame.draw.rect(self._surface, (255, 255, 255), (my_left, my_top, self._size, self._size), 1)
+            if cell == self._active:
+                pygame.draw.rect(self._surface, color, (my_left + 3, my_top + 3, self._size - 6, self._size - 6))
+            else:
+                pygame.draw.rect(self._surface, color, (my_left + 1, my_top + 1, self._size - 2, self._size - 2))
+        else:
+            pygame.draw.rect(self._surface, (255, 255, 255), (my_left, my_top, self._size, self._size), 1)
+
+    def get_cell(self, x, y):
+        print(x // self._size, y // self._size)
+        return x // self._size, y // self._size
+
+    def get_item(self, cell):
+        return self._board[cell[0]][cell[1]]
+
+    def set_item(self, cell, item):
+        self._board[cell[0]][cell[1]] = item
+
+    def change_color(self, item):
+        if self.get_item(item) == (0, 0, 0):
+            self.set_item(item, (255, 255, 255))
+        elif self.get_item(item) == (255, 255, 255):
+            self.set_item(item, (0, 0, 0))
+
+    def click(self, pos):
+        foo = self.get_cell(pos[0], pos[1])
+        if foo is None:
+            print('None')
+        else:
+            self.clicked_cell = foo
+            print(self.clicked_cell)
+
+    def step(self):
+        if self._active:
+            self.step_with_active()
+        else:
+            self.step_without_active()
+
+    def step_with_active(self):
+        if self._active == self.clicked_cell:
+            self.clear_active()
+        else:
+            self.click_on_nonactive()
+
+    def click_on_nonactive(self):
+        if self.get_item(self.clicked_cell):
+            self._active = self.clicked_cell
+        else:
+            self.click_on_empty()
+
+    def click_on_empty(self):
+        if self._tracer.has_trace(self._active, self.clicked_cell):
+            self.move_to_clicked_cell()
+
+    def move_to_clicked_cell(self):
+        self.set_item(self.clicked_cell, self.get_item(self._active))
+        self.set_item(self._active, False)
+        self.clear_active()
+        if self.collapse([self.clicked_cell]) == 0:
+            self.generate_random(3)
+
+    def collapse(self, new_cells):
+        cells_to_delete = dict()
+        for cell in new_cells:
+            series_cells = self.get_series_cells(cell)
+            for s_cell in series_cells:
+                cells_to_delete[s_cell] = True
+        for cell in cells_to_delete:
+            self.set_item(cell, False)
+        return len(cells_to_delete)
+
+    def get_series_cells(self, cell):
+        return self.get_horizontal_series_cells(cell) + self.get_vertical_series_cells(cell)
+
+    def get_horizontal_series_cells(self, cell):
+        horizontal_cells = [cell]
+        i = cell[0] + 1
+        while i < len(self._board):
+            next_cell = (i, cell[1])
+            horizontal_cells.append(next_cell)
+            i += 1
+        i = cell[0] - 1
+        while i >= 0:
+            next_cell = (i, cell[1])
+            horizontal_cells.append(next_cell)
+            i -= 1
+        return horizontal_cells
+
+    def get_vertical_series_cells(self, cell):
+        vertical_cells = [cell]
+        i = cell[1] + 1
+        while i < len(self._board[cell[0]]):
+            next_cell = (cell[0], i)
+            vertical_cells.append(next_cell)
+            i += 1
+        i = cell[1] - 1
+        while i >= 0:
+            next_cell = (cell[0], i)
+            vertical_cells.append(next_cell)
+            i -= 1
+        return vertical_cells
+
+    def step_without_active(self):
+        if self.get_item(self.clicked_cell):
+            self._active = self.clicked_cell
+
+    def get_height(self):
+        return self._rows * self._size
+
+    def get_width(self):
+        return self._cols * self._size
+
+    def in_board(self, pos):
+        if self._left > pos[0]:
+            return False
+        if self._left + self.get_height() < pos[0]:
+            return False
+        if self._top > pos[1]:
+            return False
+        if self._top + self.get_width() < pos[1]:
+            return False
+        return True
+
+    def clear_active(self):
+        self._active = False
