@@ -39,7 +39,7 @@ class Board:
         for cell in self._queue:
             if self._guessed[cell[0]][cell[1]]:
                 self._board[cell[0]][cell[1]] = self._colored[cell[0]][cell[1]]
-                self._ticks = 1000
+                self._ticks = 2000
 
     def handle_timer(self, ticks):
         if self._ticks > 0:
@@ -91,11 +91,12 @@ class Board:
             self.set_item(item, (0, 0, 0))
 
     def click(self, pos):
-        foo = self.get_cell(pos[0], pos[1])
-        if foo is None:
-            return None
-        else:
-            self.clicked_cell = foo
+        for cell in self._queue:
+            print(self.get_cell(pos[0], pos[1]), cell)
+            if self.get_cell(pos[0], pos[1]) != cell:
+                return False
+            else:
+                return True
 
     def step(self):
         if self._active:
